@@ -30,12 +30,18 @@ export async function httpCreateContact(req, res) {
 
 /**
  * GET /api/contacts
- * Get all contacts
+ * Get all contacts with optional search and pagination
+ * Query params: search, page, limit
  */
 export async function httpGetAllContacts(req, res) {
   try {
-    const contacts = await getAllContacts();
-    return res.status(200).json(contacts);
+    const search = req.query.search || '';
+    const page   = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit  = Math.max(1, parseInt(req.query.limit) || 10);
+
+    const { data, total } = await getAllContacts(search, page, limit);
+
+    return res.status(200).json({ data, page, limit, total });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }

@@ -12,10 +12,37 @@ export async function createContact(data) {
 }
 
 /**
- * Retrieve all contacts from the database
+ * Retrieve contacts with optional search and pagination
+ * @param {string} search - Search query (numbers → phone, letters → name)
+ * @param {number} page   - Current page number (default: 1)
+ * @param {number} limit  - Results per page (default: 10)
  */
-export async function getAllContacts() {
-  return await Contact.find({}).sort({ createdAt: -1 });
+export async function getAllContacts(search = '', page = 1, limit = 10) {
+  const query = {};
+
+  const trimmed = search.trim();
+
+  if (trimmed) {
+    // If search contains ANY alphabet character → search by name (case-insensitive)
+    // If search contains ONLY numbers → search by phone (partial match)
+    const isNumericOnly = /^\d+$/.test(trimmed);
+
+    if (isNumericOnly) {
+      query.phone = { $regex: trimmed, $options: '' };
+    } else {
+      query.name = { $regex: trimmed, $options: 'i' };
+    }
+  }
+
+  const skip = (page - 1) * limit;
+
+  // Run count and data fetch in parallel for efficiency
+  const [total, data] = await Promise.all([
+    Contact.countDocuments(query),
+    Contact.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
+  ]);
+
+  return { data, total };
 }
 
 /**
